@@ -1,0 +1,45 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SourceType {
+  OSM
+  POI_SCHWEIZ
+  CURATED
+}
+
+enum SiteStatus {
+  active
+  closed
+  suspect
+}
+
+model GrillSite {
+  id                 String     @id @default(uuid())
+  osmId              String?    @unique
+  name               String
+  canton             String?
+  municipality       String?
+  lat                Float
+  lon                Float
+  hasFirepit         Boolean    @default(false)
+  hasBbqGrill        Boolean    @default(false)
+  woodAvailable      Boolean?
+  picnicTables       Boolean?
+  drinkingWater      Boolean?
+  toilets            Boolean?
+  playground         Boolean?
+  sourcePrimary      SourceType @default(OSM)
+  sourceSecondary    String?
+  lastAutoUpdateAt   DateTime?
+  lastManualUpdateAt DateTime?
+  status             SiteStatus @default(active)
+  rawTags            Json?
+
+  @@map("grill_sites")
+}

@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  height: 100%;
+}
+
+.marker-wood .leaflet-marker-icon {
+  filter: hue-rotate(30deg) saturate(1.5);
+}
+
+/* Make Leaflet cluster styles play nicely with Tailwind */
+.leaflet-cluster-anim .leaflet-marker-icon,
+.leaflet-cluster-anim .leaflet-marker-shadow {
+  transition: transform 0.3s ease-out, opacity 0.3s ease-in;
+}
