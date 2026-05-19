@@ -1,9 +1,11 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import dynamic from "next/dynamic";
 
-const MiniMap = dynamic(() => import("@/components/MiniMap"), { ssr: false });
+export const dynamic = "force-dynamic";
+import dynamicImport from "next/dynamic";
+
+const MiniMap = dynamicImport(() => import("@/components/MiniMap"), { ssr: false });
 
 async function getSite(id: string) {
   try {
