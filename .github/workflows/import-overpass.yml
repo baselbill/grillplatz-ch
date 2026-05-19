@@ -1,0 +1,25 @@
+name: Import Overpass Data
+
+on:
+  schedule:
+    - cron: "0 3 * * *" # nightly at 03:00 UTC
+  workflow_dispatch: # allow manual trigger from GitHub UI
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx prisma generate
+
+      - run: npm run import:overpass
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
