@@ -34,6 +34,15 @@ model GrillSite {
   drinkingWater      Boolean?
   toilets            Boolean?
   playground         Boolean?
+  website            String?
+  description        String?
+  openingHours       String?
+  capacity           Int?
+  covered            Boolean?
+  fee                Boolean?
+  wheelchair         String?
+  operator           String?
+  access             String?
   sourcePrimary      SourceType @default(OSM)
   sourceSecondary    String?
   lastAutoUpdateAt   DateTime?

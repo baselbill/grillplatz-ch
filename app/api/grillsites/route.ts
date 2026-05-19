@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
   const tables = sp.get("tables");
   const water = sp.get("water");
   const toilets = sp.get("toilets");
+  const covered = sp.get("covered");
 
   const hasRadius = latStr && lonStr && radiusStr;
 
@@ -46,25 +47,25 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const conditions: string[] = [
-      `status = 'active'`,
-      `ST_DWithin(geog, ST_MakePoint(${lon}, ${lat})::geography, ${radiusM})`,
+    const conditions: Prisma.Sql[] = [
+      Prisma.sql`status = 'active'`,
+      Prisma.sql`ST_DWithin(geog, ST_MakePoint(${lon}, ${lat})::geography, ${radiusM})`,
     ];
-    if (canton) conditions.push(`canton = '${canton.replace(/'/g, "''")}'`);
-    if (wood === "true") conditions.push(`"woodAvailable" = true`);
-    if (tables === "true") conditions.push(`"picnicTables" = true`);
-    if (water === "true") conditions.push(`"drinkingWater" = true`);
-    if (toilets === "true") conditions.push(`toilets = true`);
+    if (canton) conditions.push(Prisma.sql`canton = ${canton}`);
+    if (wood === "true") conditions.push(Prisma.sql`"woodAvailable" = true`);
+    if (tables === "true") conditions.push(Prisma.sql`"picnicTables" = true`);
+    if (water === "true") conditions.push(Prisma.sql`"drinkingWater" = true`);
+    if (toilets === "true") conditions.push(Prisma.sql`toilets = true`);
+    if (covered === "true") conditions.push(Prisma.sql`covered = true`);
 
-    const where = conditions.join(" AND ");
+    const whereClause = Prisma.join(conditions, " AND ");
     const sql = Prisma.sql`
       SELECT id, name, canton, municipality, lat, lon,
              "hasFirepit", "hasBbqGrill", "woodAvailable",
-             "picnicTables", "drinkingWater", toilets, playground,
-             ST_Distance(geog, ST_MakePoint(${lon}, ${lat})::geography) AS distance_m
+             "picnicTables", "drinkingWater", toilets, playground
       FROM grill_sites
-      WHERE ${Prisma.raw(where)}
-      ORDER BY distance_m
+      WHERE ${whereClause}
+      ORDER BY ST_Distance(geog, ST_MakePoint(${lon}, ${lat})::geography)
       LIMIT 300
     `;
 
@@ -79,6 +80,7 @@ export async function GET(request: NextRequest) {
   if (tables === "true") where.picnicTables = true;
   if (water === "true") where.drinkingWater = true;
   if (toilets === "true") where.toilets = true;
+  if (covered === "true") where.covered = true;
 
   const sites = await prisma.grillSite.findMany({
     where,

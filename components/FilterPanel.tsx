@@ -8,11 +8,17 @@ const SWISS_CANTONS = [
   "TI", "UR", "VD", "VS", "ZG", "ZH",
 ];
 
+const RADIUS_OPTIONS = [5, 10, 20, 50];
+
 interface FilterPanelProps {
   filters: FilterState;
   onChange: (f: FilterState) => void;
   siteCount: number;
   loading: boolean;
+  userLocation: { lat: number; lon: number } | null;
+  radiusKm: number;
+  onRadiusChange: (km: number) => void;
+  defaultFilters: FilterState;
 }
 
 export default function FilterPanel({
@@ -20,10 +26,22 @@ export default function FilterPanel({
   onChange,
   siteCount,
   loading,
+  userLocation,
+  radiusKm,
+  onRadiusChange,
+  defaultFilters,
 }: FilterPanelProps) {
   function toggle(key: keyof Omit<FilterState, "canton">) {
     onChange({ ...filters, [key]: !filters[key] });
   }
+
+  const isAnyFilterActive =
+    filters.canton !== "" ||
+    filters.wood ||
+    filters.tables ||
+    filters.water ||
+    filters.toilets ||
+    filters.covered;
 
   return (
     <div className="bg-white border-b border-gray-200 px-4 py-3 space-y-3">
@@ -48,6 +66,11 @@ export default function FilterPanel({
           active={filters.toilets}
           onClick={() => toggle("toilets")}
         />
+        <FilterChip
+          label="🏕️ Überdacht"
+          active={filters.covered}
+          onClick={() => toggle("covered")}
+        />
 
         <select
           value={filters.canton}
@@ -61,12 +84,48 @@ export default function FilterPanel({
             </option>
           ))}
         </select>
+
+        {isAnyFilterActive && (
+          <button
+            onClick={() => onChange(defaultFilters)}
+            className="text-sm text-brand-orange hover:underline"
+          >
+            Alle zurücksetzen
+          </button>
+        )}
       </div>
+
+      {userLocation && (
+        <div className="flex items-center gap-3">
+          <label className="text-xs text-gray-500 whitespace-nowrap">
+            Umkreis: {radiusKm} km
+          </label>
+          <input
+            type="range"
+            min={0}
+            max={RADIUS_OPTIONS.length - 1}
+            step={1}
+            value={RADIUS_OPTIONS.indexOf(radiusKm) === -1 ? 2 : RADIUS_OPTIONS.indexOf(radiusKm)}
+            onChange={(e) => onRadiusChange(RADIUS_OPTIONS[parseInt(e.target.value)])}
+            className="flex-1 accent-brand-orange"
+          />
+          <div className="flex gap-1 text-xs text-gray-400">
+            {RADIUS_OPTIONS.map((r) => (
+              <span
+                key={r}
+                className={r === radiusKm ? "text-brand-orange font-semibold" : ""}
+              >
+                {r}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       <p className="text-xs text-gray-500">
         {loading
           ? "Laden…"
-          : `${siteCount} Grillplatz${siteCount !== 1 ? "¨e" : ""} gefunden`}
+          : `${siteCount} Grillplatz${siteCount !== 1 ? "e" : ""} gefunden`}
       </p>
     </div>
   );

@@ -8,9 +8,19 @@ interface SiteListProps {
   sites: GrillSiteSummary[];
   selectedId: string | null;
   onSelect: (site: GrillSiteSummary) => void;
+  loading?: boolean;
 }
 
-export default function SiteList({ sites, selectedId, onSelect }: SiteListProps) {
+function SkeletonCard() {
+  return (
+    <div className="px-4 py-3 border-b border-gray-100 animate-pulse">
+      <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
+      <div className="h-3 bg-gray-100 rounded w-1/2" />
+    </div>
+  );
+}
+
+export default function SiteList({ sites, selectedId, onSelect, loading }: SiteListProps) {
   const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   useEffect(() => {
@@ -21,6 +31,16 @@ export default function SiteList({ sites, selectedId, onSelect }: SiteListProps)
       });
     }
   }, [selectedId]);
+
+  if (loading && sites.length === 0) {
+    return (
+      <div className="flex-1 overflow-y-auto">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <SkeletonCard key={i} />
+        ))}
+      </div>
+    );
+  }
 
   if (sites.length === 0) {
     return (

@@ -2,40 +2,36 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
-import { FilterState, GrillSiteSummary } from "@/lib/types";
+import { DEFAULT_FILTERS, FilterState, GrillSiteSummary } from "@/lib/types";
 import FilterPanel from "@/components/FilterPanel";
 import SiteList from "@/components/SiteList";
 
 const Map = dynamic(() => import("@/components/Map"), { ssr: false });
 
-const DEFAULT_FILTERS: FilterState = {
-  canton: "",
-  wood: false,
-  tables: false,
-  water: false,
-  toilets: false,
-};
-
 export default function HomePage() {
   const [sites, setSites] = useState<GrillSiteSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const [selectedSite, setSelectedSite] = useState<GrillSiteSummary | null>(null);
   const [userLocation, setUserLocation] = useState<{
     lat: number;
     lon: number;
   } | null>(null);
+  const [radiusKm, setRadiusKm] = useState(20);
   const [flyTo, setFlyTo] = useState<[number, number] | null>(null);
   const [locating, setLocating] = useState(false);
+  const [geoError, setGeoError] = useState<string | null>(null);
   const [listOpen, setListOpen] = useState(false);
 
   const fetchSites = useCallback(
     async (
       f: FilterState,
       loc: { lat: number; lon: number } | null,
-      radiusKm = 20
+      radius = 20
     ) => {
       setLoading(true);
+      setError(null);
       try {
         const params = new URLSearchParams();
         if (f.canton) params.set("canton", f.canton);
@@ -43,14 +39,18 @@ export default function HomePage() {
         if (f.tables) params.set("tables", "true");
         if (f.water) params.set("water", "true");
         if (f.toilets) params.set("toilets", "true");
+        if (f.covered) params.set("covered", "true");
         if (loc) {
           params.set("lat", String(loc.lat));
           params.set("lon", String(loc.lon));
-          params.set("radius_km", String(radiusKm));
+          params.set("radius_km", String(radius));
         }
         const res = await fetch(`/api/grillsites?${params}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data: GrillSiteSummary[] = await res.json();
         setSites(data);
+      } catch {
+        setError("Fehler beim Laden der Grillplätze. Bitte erneut versuchen.");
       } finally {
         setLoading(false);
       }
@@ -59,12 +59,16 @@ export default function HomePage() {
   );
 
   useEffect(() => {
-    fetchSites(filters, userLocation);
-  }, [filters, userLocation, fetchSites]);
+    fetchSites(filters, userLocation, radiusKm);
+  }, [filters, userLocation, radiusKm, fetchSites]);
 
   function handleLocate() {
-    if (!navigator.geolocation) return;
+    if (!navigator.geolocation) {
+      setGeoError("Standort wird von diesem Browser nicht unterstützt.");
+      return;
+    }
     setLocating(true);
+    setGeoError(null);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const loc = { lat: pos.coords.latitude, lon: pos.coords.longitude };
@@ -72,7 +76,10 @@ export default function HomePage() {
         setFlyTo([loc.lat, loc.lon]);
         setLocating(false);
       },
-      () => setLocating(false)
+      () => {
+        setGeoError("Standort nicht verfügbar. Bitte Berechtigung prüfen.");
+        setLocating(false);
+      }
     );
   }
 
@@ -82,21 +89,34 @@ export default function HomePage() {
     setListOpen(false);
   }
 
+  const filterPanel = (
+    <FilterPanel
+      filters={filters}
+      onChange={setFilters}
+      siteCount={sites.length}
+      loading={loading}
+      userLocation={userLocation}
+      radiusKm={radiusKm}
+      onRadiusChange={setRadiusKm}
+      defaultFilters={DEFAULT_FILTERS}
+    />
+  );
+
+  const siteList = (
+    <SiteList
+      sites={sites}
+      selectedId={selectedSite?.id ?? null}
+      onSelect={handleSelectSite}
+      loading={loading}
+    />
+  );
+
   return (
     <div className="flex h-full relative">
       {/* Desktop sidebar */}
       <div className="hidden md:flex flex-col w-80 shrink-0 bg-white border-r border-gray-200 z-10">
-        <FilterPanel
-          filters={filters}
-          onChange={setFilters}
-          siteCount={sites.length}
-          loading={loading}
-        />
-        <SiteList
-          sites={sites}
-          selectedId={selectedSite?.id ?? null}
-          onSelect={handleSelectSite}
-        />
+        {filterPanel}
+        {siteList}
       </div>
 
       {/* Map */}
@@ -108,6 +128,21 @@ export default function HomePage() {
           flyTo={flyTo}
           userLocation={userLocation}
         />
+
+        {/* Error banner */}
+        {error && (
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[1000] bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-2 rounded-xl shadow flex items-center gap-2">
+            <span>{error}</span>
+            <button onClick={() => setError(null)} className="text-red-400 hover:text-red-600">✕</button>
+          </div>
+        )}
+
+        {/* Geolocation error */}
+        {geoError && (
+          <div className="absolute top-16 right-3 z-[1000] bg-amber-50 border border-amber-200 text-amber-700 text-xs px-3 py-2 rounded-xl shadow max-w-56">
+            {geoError}
+          </div>
+        )}
 
         {/* Locate button */}
         <button
@@ -144,17 +179,8 @@ export default function HomePage() {
               ✕ Schliessen
             </button>
           </div>
-          <FilterPanel
-            filters={filters}
-            onChange={setFilters}
-            siteCount={sites.length}
-            loading={loading}
-          />
-          <SiteList
-            sites={sites}
-            selectedId={selectedSite?.id ?? null}
-            onSelect={handleSelectSite}
-          />
+          {filterPanel}
+          {siteList}
         </div>
       )}
     </div>

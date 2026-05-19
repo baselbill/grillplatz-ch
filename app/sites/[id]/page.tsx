@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 import dynamicImport from "next/dynamic";
+import CopyLinkButton from "@/components/CopyLinkButton";
 
 const MiniMap = dynamicImport(() => import("@/components/MiniMap"), { ssr: false });
 
@@ -42,6 +43,25 @@ function AmenityRow({
   );
 }
 
+function InfoRow({
+  icon,
+  label,
+  value,
+}: {
+  icon: string;
+  label: string;
+  value: string | number | null | undefined;
+}) {
+  if (value === null || value === undefined) return null;
+  return (
+    <div className="flex items-start gap-3 py-2 border-b border-gray-100 last:border-0">
+      <span className="text-xl w-8 text-center shrink-0">{icon}</span>
+      <span className="text-sm text-gray-500 w-24 shrink-0">{label}</span>
+      <span className="text-sm text-gray-800 flex-1">{value}</span>
+    </div>
+  );
+}
+
 export default async function SiteDetailPage({
   params,
 }: {
@@ -52,16 +72,31 @@ export default async function SiteDetailPage({
 
   const googleMapsUrl = `https://www.google.com/maps?q=${site.lat},${site.lon}`;
 
+  const wheelchairLabel =
+    site.wheelchair === "yes"
+      ? "Rollstuhlgerecht"
+      : site.wheelchair === "limited"
+      ? "Eingeschränkt zugänglich"
+      : site.wheelchair === "no"
+      ? "Nicht zugänglich"
+      : null;
+
+  const showAccessWarning =
+    site.access === "private" || site.access === "permissive";
+
   return (
     <div className="h-full overflow-y-auto">
       <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
-        {/* Back link */}
-        <Link
-          href="/"
-          className="inline-flex items-center gap-1 text-sm text-brand-orange hover:underline"
-        >
-          ← Zurück zur Karte
-        </Link>
+        {/* Back link + share */}
+        <div className="flex items-center justify-between">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1 text-sm text-brand-orange hover:underline"
+          >
+            ← Zurück zur Karte
+          </Link>
+          <CopyLinkButton />
+        </div>
 
         {/* Header */}
         <div>
@@ -71,7 +106,18 @@ export default async function SiteDetailPage({
               {[site.canton, site.municipality].filter(Boolean).join(" · ")}
             </p>
           )}
+          {site.description && (
+            <p className="text-sm text-gray-600 mt-2 leading-relaxed">{site.description}</p>
+          )}
         </div>
+
+        {/* Access warning */}
+        {showAccessWarning && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
+            ⚠️ Dieser Platz ist möglicherweise nicht öffentlich zugänglich
+            {site.access === "permissive" ? " (Nutzung auf eigene Verantwortung)" : " (Privat)"}.
+          </div>
+        )}
 
         {/* Mini map */}
         <div className="h-48 rounded-xl overflow-hidden border border-gray-200">
@@ -110,7 +156,50 @@ export default async function SiteDetailPage({
           <AmenityRow icon="💧" label="Trinkwasser" value={site.drinkingWater} />
           <AmenityRow icon="🚻" label="Toiletten" value={site.toilets} />
           <AmenityRow icon="🛝" label="Spielplatz" value={site.playground} />
+          <AmenityRow icon="🏕️" label="Überdacht" value={site.covered} />
         </div>
+
+        {/* Extra info */}
+        {(site.openingHours || site.capacity || site.fee !== null || wheelchairLabel || site.operator) && (
+          <div className="bg-white rounded-xl border border-gray-200 px-4 divide-y divide-gray-100">
+            <h2 className="py-3 font-semibold text-gray-900 text-sm">Details</h2>
+            <InfoRow icon="🕐" label="Öffnungszeiten" value={site.openingHours} />
+            <InfoRow icon="👥" label="Kapazität" value={site.capacity ? `Bis ${site.capacity} Personen` : null} />
+            {site.fee !== null && (
+              <div className="flex items-center gap-3 py-2 border-b border-gray-100 last:border-0">
+                <span className="text-xl w-8 text-center shrink-0">💰</span>
+                <span className="text-sm text-gray-500 w-24 shrink-0">Gebühr</span>
+                <span
+                  className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                    site.fee
+                      ? "bg-amber-100 text-amber-800"
+                      : "bg-green-100 text-green-800"
+                  }`}
+                >
+                  {site.fee ? "Gebührenpflichtig" : "Kostenlos"}
+                </span>
+              </div>
+            )}
+            {wheelchairLabel && (
+              <div className="flex items-center gap-3 py-2 border-b border-gray-100 last:border-0">
+                <span className="text-xl w-8 text-center shrink-0">♿</span>
+                <span className="text-sm text-gray-500 w-24 shrink-0">Rollstuhl</span>
+                <span
+                  className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                    site.wheelchair === "yes"
+                      ? "bg-green-100 text-green-800"
+                      : site.wheelchair === "limited"
+                      ? "bg-amber-100 text-amber-800"
+                      : "bg-gray-100 text-gray-500"
+                  }`}
+                >
+                  {wheelchairLabel}
+                </span>
+              </div>
+            )}
+            <InfoRow icon="🏢" label="Betreiber" value={site.operator} />
+          </div>
+        )}
 
         {/* Coordinates */}
         <div className="bg-white rounded-xl border border-gray-200 px-4 py-3">
@@ -129,6 +218,18 @@ export default async function SiteDetailPage({
               : site.sourcePrimary}
             {site.osmId && ` · ${site.osmId}`}
           </p>
+          {site.website && (
+            <p>
+              <a
+                href={site.website}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline hover:text-gray-600 break-all"
+              >
+                {site.website}
+              </a>
+            </p>
+          )}
           {site.lastAutoUpdateAt && (
             <p>
               Zuletzt aktualisiert:{" "}

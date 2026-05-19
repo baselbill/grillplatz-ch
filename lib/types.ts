@@ -22,6 +22,15 @@ export interface GrillSiteDetail extends GrillSiteSummary {
   lastManualUpdateAt: string | null;
   status: "active" | "closed" | "suspect";
   googleMapsUrl: string;
+  website: string | null;
+  description: string | null;
+  openingHours: string | null;
+  capacity: number | null;
+  covered: boolean | null;
+  fee: boolean | null;
+  wheelchair: string | null;
+  operator: string | null;
+  access: string | null;
 }
 
 export interface FilterState {
@@ -30,4 +39,14 @@ export interface FilterState {
   tables: boolean;
   water: boolean;
   toilets: boolean;
+  covered: boolean;
 }
+
+export const DEFAULT_FILTERS: FilterState = {
+  canton: "",
+  wood: false,
+  tables: false,
+  water: false,
+  toilets: false,
+  covered: false,
+};
